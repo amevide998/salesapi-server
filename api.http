@@ -1,2 +1,14 @@
-// TEST API
-GET localhost:3000/testApi
+###TEST GET CASHIER LIST
+GET localhost:8000/cashiers?limit=1&skip=0
+
+###TEST POST CASHIER
+POST localhost:8000/cashiers
+Content-Type: application/json
+
+{
+  "name": "mahoraga",
+  "passcode": "Password"
+}
+
+### TEST CASHIER DETAIL
+GET localhost:8000/cashiers/1
