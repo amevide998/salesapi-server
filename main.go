@@ -23,7 +23,7 @@ func main() {
 	})
 
 	// listen on port
-	err := app.Listen(":3000")
+	err := app.Listen(":8000")
 	if err != nil {
 		return
 	}
