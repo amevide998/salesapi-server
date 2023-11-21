@@ -1,0 +1,63 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is the complete api documentation for sales api",
+        "title": "Sales api docs",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8000",
+    "paths": {
+        "/cashiers": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/Response.WebResponse-array_Model_Cashier"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "Model.Cashier": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "passcode": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "Response.WebResponse-array_Model_Cashier": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Model.Cashier"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        }
+    }
+}

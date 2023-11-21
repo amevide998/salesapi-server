@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"net/http"
 	"sales-api/Model"
+	"sales-api/Response"
 	db "sales-api/config"
 	"strconv"
 	"time"
@@ -97,6 +98,8 @@ func UpdateCashier(c *fiber.Ctx) error {
 		})
 }
 
+// @Success 200 {object} Response.WebResponse[[]Model.Cashier]
+// @Router /cashiers [get]
 func GetCashierList(c *fiber.Ctx) error {
 	var cashier []Model.Cashier
 
@@ -105,12 +108,13 @@ func GetCashierList(c *fiber.Ctx) error {
 
 	var count int64
 	db.DB.Select("*").Limit(limit).Offset(skip).Find(&cashier).Count(&count)
-	return c.Status(http.StatusOK).JSON(
-		fiber.Map{
-			"success": true,
-			"message": "success get cashier list",
-			"data":    cashier,
-		})
+
+	response := Response.WebResponse[[]Model.Cashier]{
+		Success: true,
+		Message: "cashier list",
+		Data:    cashier,
+	}
+	return c.Status(http.StatusOK).JSON(response)
 }
 
 func DeleteCashier(c *fiber.Ctx) error {

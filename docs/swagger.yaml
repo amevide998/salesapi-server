@@ -1,0 +1,40 @@
+definitions:
+  Model.Cashier:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      passcode:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  Response.WebResponse-array_Model_Cashier:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/Model.Cashier'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8000
+info:
+  contact: {}
+  description: This is the complete api documentation for sales api
+  title: Sales api docs
+  version: "1.0"
+paths:
+  /cashiers:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-array_Model_Cashier'
+swagger: "2.0"
