@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
 	routes "sales-api/Routes"
 	db "sales-api/config"
@@ -20,14 +21,14 @@ func main() {
 	// fiber instance
 	app := fiber.New()
 
-	//// Initialize default config
-	//app.Use(cors.New())
-	//
-	////Or extend your config for customization
-	//app.Use(cors.New(cors.Config{
-	//	AllowOrigins: "*",
-	//	AllowHeaders: "Origin, Content-Type, Accept",
-	//}))
+	// Initialize default config
+	app.Use(cors.New())
+
+	//Or extend your config for customization
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowHeaders: "Origin, Content-Type, Accept",
+	}))
 
 	// swagger
 	app.Get("/swagger/*", swagger.HandlerDefault) // default
