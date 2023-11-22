@@ -5,16 +5,20 @@ import (
 	"log"
 	"sales-api/Middleware"
 	"sales-api/Model"
+	"sales-api/Response"
 	db "sales-api/config"
+	"sales-api/dto"
 	"strconv"
 )
 
-// Category struct with two values
-type Category struct {
-	Id   uint   `json:"categoryId"`
-	Name string `json:"name"`
-}
-
+// category controller
+// @Description create category
+// @Summary create category
+// @Tags category
+// @Produce json
+// @Param request body Model.Category true "request"
+// @Success 200 {object} Response.WebResponse[Model.Category]
+// @Router /categories [post]
 func CreateCategory(c *fiber.Ctx) error {
 	var data map[string]string
 	err := c.BodyParser(&data)
@@ -22,165 +26,184 @@ func CreateCategory(c *fiber.Ctx) error {
 		log.Fatalf("category error in post request %v", err)
 	}
 	if data["name"] == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"message": "Category name is required",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("category name is required")
+		return c.Status(400).JSON(response)
 	}
 	category := Model.Category{
 		Name: data["name"],
 	}
 	db.DB.Create(&category)
-	//result:=db.DB.Create(&category)
 
-	//if result.RowsAffected == 0 {
-	//	return c.Status(404).JSON(fiber.Map{
-	//		"success": false,
-	//		"Message": "category insertion failed",
-	//	})
-	//}
-
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    category,
-	})
+	response := Response.NewWebResponse(category)
+	return c.Status(200).JSON(response)
 }
 
+// category controller
+// @Description get category details
+// @Summary get category details
+// @Tags category
+// @Produce json
+// @Param categoryId path string true "category id"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[Model.Category]
+// @Router /categories/{categoryId} [get]
 func GetCategoryDetails(c *fiber.Ctx) error {
 	categoryId := c.Params("categoryId")
 
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
 	var category Model.Category
 	db.DB.Select("id ,name").Where("id=?", categoryId).First(&category)
-	categoryData := make(map[string]interface{})
-	categoryData["categoryId"] = category.Id
-	categoryData["name"] = category.Name
 
 	if category.Name == "" {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"Message": "No category found",
-		})
+		response := Response.NewWebErrorResponse("No category found")
+		return c.Status(404).JSON(response)
 	}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    categoryData,
-	})
+	categoryData := dto.Category{
+		Id:   uint(category.Id),
+		Name: category.Name,
+	}
+
+	response := Response.NewWebResponse(categoryData)
+	return c.JSON(response)
 }
 
+// category controller
+// @Description delete category
+// @Summary get delete category
+// @Tags category
+// @Produce json
+// @Param categoryId path string true "category id"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[string]
+// @Router /categories/{categoryId} [delete]
 func DeleteCategory(c *fiber.Ctx) error {
+
+	//Token authenticate
+	headerToken := c.Get("Authorization")
+	if headerToken == "" {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	//Token authenticate
 
 	categoryId := c.Params("categoryId")
 	var category Model.Category
 	db.DB.Where("id=?", categoryId).First(&category)
 
 	if category.Id == 0 {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "category not found",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("category not found")
+		return c.Status(404).JSON(response)
 	}
 
 	db.DB.Where("id = ?", categoryId).Delete(&category)
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-	})
+	response := Response.NewWebResponse(categoryId)
+	return c.Status(200).JSON(response)
 }
 
+// category controller
+// @Description update category
+// @Summary get update category
+// @Tags category
+// @Produce json
+// @Param categoryId path string true "category id"
+// @Param request body Model.Category true "request"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[Model.Category]
+// @Router /categories/{categoryId} [put]
 func UpdateCategory(c *fiber.Ctx) error {
+	//Token authenticate
+	headerToken := c.Get("Authorization")
+	if headerToken == "" {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	//Token authenticate
+
 	categoryId := c.Params("categoryId")
 	var category Model.Category
 
 	db.DB.Find(&category, "id = ?", categoryId)
 
 	if category.Name == "" {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "Category not exist against this id",
-		})
+		response := Response.NewWebErrorResponse("Category not exist against this id")
+		return c.Status(404).JSON(response)
 	}
 
 	var updateCashierData Model.Category
 	c.BodyParser(&updateCashierData)
 	if updateCashierData.Name == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"message": "Category name is required",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Category name is required")
+		return c.Status(400).JSON(response)
 	}
 	category.Name = updateCashierData.Name
 	db.DB.Save(&category)
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    category,
-	})
+
+	response := Response.NewWebResponse(category)
+	return c.Status(200).JSON(response)
 
 }
 
+// category controller
+// @Description get category list
+// @Summary get category list
+// @Tags category
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Param limit query string true "limit"
+// @Param skip query string true "skip"
+// @Success 200 {object} Response.WebResponse[dto.CategoryList]
+// @Router /categories [get]
 func CategoryList(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	skip, _ := strconv.Atoi(c.Query("skip"))
 	var count int64
-	var category []Category
+	var category []dto.Category
 	db.DB.Select("id ,name").Limit(limit).Offset(skip).Find(&category).Count(&count)
-	metaMap := map[string]interface{}{
-		"total": count,
-		"limit": limit,
-		"skip":  skip,
-	}
-	categoriesData := map[string]interface{}{
-		"categories": category,
-		"meta":       metaMap,
+	metaMap := dto.Pagination{
+		Total: count,
+		Limit: limit,
+		Skip:  skip,
 	}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    categoriesData,
-	})
+	categoriesData := dto.CategoryList{
+		Categories: category,
+		Meta:       metaMap,
+	}
+
+	response := Response.NewWebResponse(categoriesData)
+	return c.JSON(response)
 
 }
