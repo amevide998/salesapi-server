@@ -6,36 +6,36 @@ import (
 	"sales-api/Model"
 	"sales-api/Response"
 	db "sales-api/config"
+	"sales-api/dto"
 	"strconv"
 	"time"
 )
 
+// cashier controller
+// @Description create cashier
+// @Summary create cashier
+// @Tags cashiers
+// @Produce json
+// @Param request body Model.Cashier true "request"
+// @Success 201 {object} Response.WebResponse[string]
+// @Router /cashiers [post]
 func CreateCashier(c *fiber.Ctx) error {
 	var data map[string]string
 
 	err := c.BodyParser(&data)
 	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(
-			fiber.Map{
-				"success": false,
-				"message": "invalid input",
-			})
+		response := Response.NewWebErrorResponse("invalid input")
+		return c.Status(http.StatusBadRequest).JSON(response)
 	}
 
 	if data["name"] == "" {
-		return c.Status(http.StatusBadRequest).JSON(
-			fiber.Map{
-				"success": false,
-				"message": "name is required",
-			})
+		response := Response.NewWebErrorResponse("name is required")
+		return c.Status(http.StatusBadRequest).JSON(response)
 	}
 
 	if data["passcode"] == "" {
-		return c.Status(http.StatusBadRequest).JSON(
-			fiber.Map{
-				"success": false,
-				"message": "passcode is required",
-			})
+		response := Response.NewWebErrorResponse("passcode is required")
+		return c.Status(http.StatusBadRequest).JSON(response)
 	}
 
 	// saving to database
@@ -47,15 +47,20 @@ func CreateCashier(c *fiber.Ctx) error {
 	}
 
 	db.DB.Create(&cashier)
-	return c.Status(http.StatusCreated).JSON(
-		fiber.Map{
-			"status":  true,
-			"message": "success created cashier",
-			"data":    cashier.Name,
-		})
+
+	response := Response.NewWebResponse(cashier.Name)
+	return c.Status(http.StatusCreated).JSON(response)
 
 }
 
+// cashier controller
+// @Description update cashier
+// @Summary get update cashier
+// @Tags cashiers
+// @Produce json
+// @Param request body Model.Cashier true "request"
+// @Success 200 {object} Response.WebResponse[string]
+// @Router /cashiers/{cashierId} [put]
 func UpdateCashier(c *fiber.Ctx) error {
 	var cashier Model.Cashier
 
@@ -64,11 +69,8 @@ func UpdateCashier(c *fiber.Ctx) error {
 	db.DB.Find(&cashier, "id = ? ", cashierId)
 
 	if cashier.Name == "" {
-		return c.Status(http.StatusNotFound).JSON(
-			fiber.Map{
-				"success": false,
-				"message": "cashier not found",
-			})
+		response := Response.NewWebResponse("cashier not found")
+		return c.Status(http.StatusNotFound).JSON(response)
 	}
 
 	var updateCashier Model.Cashier
@@ -79,25 +81,24 @@ func UpdateCashier(c *fiber.Ctx) error {
 	}
 
 	if updateCashier.Name == "" {
-		return c.Status(http.StatusBadRequest).JSON(
-			fiber.Map{
-				"success": false,
-				"message": "name is required",
-			})
+		response := Response.NewWebResponse("name is required")
+		return c.Status(http.StatusBadRequest).JSON(response)
 	}
 
 	cashier.Name = updateCashier.Name
 
 	db.DB.Save(&cashier)
 
-	return c.Status(http.StatusOK).JSON(
-		fiber.Map{
-			"success": true,
-			"message": "success updated cashier",
-			"data":    cashier.Name,
-		})
+	response := Response.NewWebResponse(cashier.Name, "success updated cashier")
+
+	return c.Status(http.StatusOK).JSON(response)
 }
 
+// cashier controller
+// @Description get cashier list
+// @Summary get cashier list
+// @Tags cashiers
+// @Produce json
 // @Success 200 {object} Response.WebResponse[[]Model.Cashier]
 // @Router /cashiers [get]
 func GetCashierList(c *fiber.Ctx) error {
@@ -109,14 +110,19 @@ func GetCashierList(c *fiber.Ctx) error {
 	var count int64
 	db.DB.Select("*").Limit(limit).Offset(skip).Find(&cashier).Count(&count)
 
-	response := Response.WebResponse[[]Model.Cashier]{
-		Success: true,
-		Message: "cashier list",
-		Data:    cashier,
-	}
+	response := Response.NewWebResponse(cashier)
+
 	return c.Status(http.StatusOK).JSON(response)
 }
 
+// cashier controller
+// @Description delete cashier
+// @Summary delete cashier
+// @Tags cashiers
+// @Produce json
+// @Param cashierId path string true "cashier id"
+// @Success 200 {object} Response.WebResponse[string]
+// @Router /cashiers/{cashierId} [delete]
 func DeleteCashier(c *fiber.Ctx) error {
 	var cashier Model.Cashier
 
@@ -125,23 +131,25 @@ func DeleteCashier(c *fiber.Ctx) error {
 	db.DB.Where("id = ?", cashierId).First(&cashier)
 
 	if cashier.Id == 0 {
-		return c.Status(http.StatusNotFound).JSON(
-			fiber.Map{
-				"success": false,
-				"message": "cashier not found",
-			})
+		response := Response.NewWebErrorResponse("cashier not found")
+		return c.Status(http.StatusNotFound).JSON(response)
 	}
 
 	db.DB.Where("id = ?", cashierId).Delete(&cashier)
-	return c.Status(http.StatusOK).JSON(
-		fiber.Map{
-			"success": true,
-			"message": "success delete cashier",
-			"data":    cashier.Id,
-		})
+
+	response := Response.NewWebResponse(cashier.Id)
+	return c.Status(http.StatusOK).JSON(response)
 
 }
 
+// cashier controller
+// @Description get cashier detail
+// @Summary get cashier detail
+// @Tags cashiers
+// @Produce json
+// @Param cashierId path string true "cashier id"
+// @Success 200 {object} Response.WebResponse[dto.CashierDetails]
+// @Router /cashiers/{cashierId} [get]
 func GetCashierDetails(c *fiber.Ctx) error {
 	var cashier Model.Cashier
 	cashierId := c.Params("cashierId")
@@ -149,26 +157,18 @@ func GetCashierDetails(c *fiber.Ctx) error {
 	db.DB.Select("*").Where("id = ?", cashierId).First(&cashier)
 
 	if cashier.Id == 0 {
-		return c.Status(http.StatusNotFound).JSON(
-			fiber.Map{
-				"success": false,
-				"message": "Cashier Not Found",
-				"error":   map[string]interface{}{},
-			})
+		response := Response.NewWebResponse("cashier not found")
+		return c.Status(http.StatusNotFound).JSON(response)
 	}
 
-	cashierData := make(map[string]interface{})
+	cashierData := dto.CashierDetails{
+		CashierId: int(cashier.Id),
+		Name:      cashier.Name,
+		CreatedAt: cashier.CreatedAt,
+		UpdatedAt: cashier.UpdatedAt,
+	}
 
-	cashierData["cashierId"] = cashier.Id
-	cashierData["name"] = cashier.Name
-	cashierData["createdAt"] = cashier.CreatedAt
-	cashierData["updatedAt"] = cashier.UpdatedAt
-
-	return c.Status(http.StatusOK).JSON(
-		fiber.Map{
-			"success": true,
-			"message": "success get cashier data",
-			"data":    cashierData,
-		})
+	response := Response.NewWebResponse(cashierData)
+	return c.Status(http.StatusOK).JSON(response)
 
 }

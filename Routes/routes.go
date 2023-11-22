@@ -8,7 +8,7 @@ import (
 func Setup(app *fiber.App) {
 	// auth routes
 	app.Post("/cashier/:cashierId/login", Controller.Login)
-	app.Get("/cashier/:cashierId/logout", Controller.Logout)
+	app.Post("/cashier/:cashierId/logout", Controller.Logout)
 	app.Post("/cashier/:cashierId/passcode", Controller.Passcode)
 
 	// cashier routes

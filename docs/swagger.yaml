@@ -23,6 +23,63 @@ definitions:
       success:
         type: boolean
     type: object
+  Response.WebResponse-dto_CashierDetails:
+    properties:
+      data:
+        $ref: '#/definitions/dto.CashierDetails'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  Response.WebResponse-dto_Passcode:
+    properties:
+      data:
+        $ref: '#/definitions/dto.Passcode'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  Response.WebResponse-dto_Token:
+    properties:
+      data:
+        $ref: '#/definitions/dto.Token'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  Response.WebResponse-string:
+    properties:
+      data:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  dto.CashierDetails:
+    properties:
+      cashier_id:
+        type: integer
+      created_at:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.Passcode:
+    properties:
+      passcode:
+        type: string
+    type: object
+  dto.Token:
+    properties:
+      token:
+        type: string
+    type: object
 host: localhost:8000
 info:
   contact: {}
@@ -30,11 +87,167 @@ info:
   title: Sales api docs
   version: "1.0"
 paths:
+  /cashier/{cashierId}/login:
+    post:
+      description: login Cashier
+      parameters:
+      - description: cashier Id
+        in: path
+        name: cashierId
+        required: true
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.Passcode'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-dto_Token'
+      summary: login cashier
+      tags:
+      - authentication
+  /cashier/{cashierId}/logout:
+    post:
+      description: logout Cashier
+      parameters:
+      - description: cashier Id
+        in: path
+        name: cashierId
+        required: true
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.Passcode'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-string'
+      summary: logout cashier
+      tags:
+      - authentication
+  /cashier/{cashierId}/passcode:
+    post:
+      description: passcode Cashier
+      parameters:
+      - description: cashier Id
+        in: path
+        name: cashierId
+        required: true
+        type: string
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.Passcode'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-dto_Passcode'
+      summary: passcode cashier
+      tags:
+      - authentication
   /cashiers:
     get:
+      description: get cashier list
+      produces:
+      - application/json
       responses:
         "200":
           description: OK
           schema:
             $ref: '#/definitions/Response.WebResponse-array_Model_Cashier'
+      summary: get cashier list
+      tags:
+      - cashiers
+    post:
+      description: create cashier
+      parameters:
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/Model.Cashier'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/Response.WebResponse-string'
+      summary: create cashier
+      tags:
+      - cashiers
+  /cashiers/{cashierId}:
+    delete:
+      description: delete cashier
+      parameters:
+      - description: cashier id
+        in: path
+        name: cashierId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-string'
+      summary: delete cashier
+      tags:
+      - cashiers
+    get:
+      description: get cashier detail
+      parameters:
+      - description: cashier id
+        in: path
+        name: cashierId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-dto_CashierDetails'
+      summary: get cashier detail
+      tags:
+      - cashiers
+    put:
+      description: update cashier
+      parameters:
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/Model.Cashier'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-string'
+      summary: get update cashier
+      tags:
+      - cashiers
 swagger: "2.0"
