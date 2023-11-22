@@ -8,51 +8,48 @@ import (
 	"github.com/johnfercher/maroto/pkg/pdf"
 	"github.com/johnfercher/maroto/pkg/props"
 	"math/rand"
+	"net/http"
 	"os"
 	"sales-api/Middleware"
 	"sales-api/Model"
+	"sales-api/Response"
 	db "sales-api/config"
+	"sales-api/dto"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// order controller
+// @Description create order
+// @Summary create order
+// @Tags Order
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.OrderResponse]
+// @Router /orders [post]
 func CreateOrder(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
-	type products struct {
-		ProductId int `json:"productId"`
-		Quantity  int `json:"qty"`
-	}
-
 	body := struct {
-		PaymentId int        `json:"paymentId"`
-		TotalPaid int        `json:"totalPaid"`
-		Products  []products `json:"products"`
+		PaymentId int            `json:"paymentId"`
+		TotalPaid int            `json:"totalPaid"`
+		Products  []dto.Products `json:"products"`
 	}{}
 
 	if err := c.BodyParser(&body); err != nil {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "Empty Body",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Empty Body")
+		return c.Status(404).JSON(response)
 	}
 
 	Prodresponse := make([]*Model.ProductResponseOrder, 0)
@@ -116,35 +113,35 @@ func CreateOrder(c *fiber.Ctx) error {
 	}
 	db.DB.Create(&orderResp)
 
-	return c.Status(200).JSON(fiber.Map{
-
-		"message": "success",
-		"success": true,
-		"data": map[string]interface{}{
-			"order":    orderResp,
-			"products": Prodresponse,
-		},
-	})
+	orderResponse := dto.OrderResponse{
+		Order:    orderResp,
+		Products: Prodresponse,
+	}
+	response := Response.NewWebResponse(orderResponse)
+	return c.Status(http.StatusCreated).JSON(response)
 }
 
+// order controller
+// @Description subtotal orders
+// @Summary subtotal orders
+// @Tags Order
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.OrderResponse]
+// @Router /orders/subtotal [post]
 func SubTotalOrder(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
+
 	type products struct {
 		ProductId int `json:"productId"`
 		Quantity  int `json:"qty"`
@@ -155,10 +152,8 @@ func SubTotalOrder(c *fiber.Ctx) error {
 	}{}
 
 	if err := c.BodyParser(&body.Products); err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"Message": "Empty Body",
-		})
+		response := Response.NewWebErrorResponse(err.Error(), "empty body")
+		return c.Status(400).JSON(response)
 	}
 
 	Prodresponse := make([]*Model.ProductResponseOrder, 0)
@@ -203,69 +198,73 @@ func SubTotalOrder(c *fiber.Ctx) error {
 
 	}
 
-	return c.Status(200).JSON(fiber.Map{
+	subTotalResponse := dto.SubTotalResponse{
+		SubTotal: TotalInvoicePrice.ttprice,
+		Products: Prodresponse,
+	}
 
-		"message": "success",
-		"success": true,
-		"data": map[string]interface{}{
-			"subTotal": TotalInvoicePrice.ttprice,
-			"products": Prodresponse,
-		},
-	})
+	response := Response.NewWebResponse(subTotalResponse)
+	return c.Status(200).JSON(response)
 }
 
+// order controller
+// @Description checkout order
+// @Summary checkout order
+// @Tags Order
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Param orderId path string true "order id"
+// @Success 200 {object} Response.WebResponse[dto.CheckOrder]
+// @Router /orders/{orderId}/check-download [get]
 func CheckOrder(c *fiber.Ctx) error {
 	param := c.Params("orderId")
 
 	var order Model.Order
 	db.DB.Where("id=?", param).First(&order)
 	if order.Id == 0 {
-		return c.Status(404).JSON(fiber.Map{
-			"status":  false,
-			"message": "Order does not exist",
-		})
+		response := Response.NewWebErrorResponse("order not exists")
+		return c.Status(404).JSON(response)
 	}
 
 	if order.IsDownload == 0 {
-		return c.Status(200).JSON(fiber.Map{
-			"status":  true,
-			"message": "success",
-			"data": map[string]interface{}{
-				"isDownloaded": false,
-			},
-		})
+		data := dto.CheckOrder{
+			IsDownloaded: false,
+		}
+		response := Response.NewWebResponse(data)
+		return c.Status(200).JSON(response)
 	}
 
 	if order.IsDownload == 1 {
-		return c.Status(200).JSON(fiber.Map{
-			"status":  true,
-			"message": "success",
-			"data": map[string]interface{}{
-				"isDownloaded": true,
-			},
-		})
+		data := dto.CheckOrder{
+			IsDownloaded: true,
+		}
+		response := Response.NewWebResponse(data)
+		return c.Status(200).JSON(response)
 	}
 
 	return nil
 
 }
 
+// order controller
+// @Description  order detail
+// @Summary order detail
+// @Tags Order
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Param orderId path string true "order id"
+// @Success 200 {object} Response.WebResponse[dto.OrderDetailResponse]
+// @Router /orders/{orderId} [get]
 func OrderDetail(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
@@ -275,11 +274,8 @@ func OrderDetail(c *fiber.Ctx) error {
 	db.DB.Where("id=?", param).First(&order)
 
 	if order.Id == 0 {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"Message": "Not Found",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("not found")
+		return c.Status(404).JSON(response)
 	}
 	productIds := strings.Split(order.ProductId, ",")
 	TotalProducts := make([]*Model.Product, 0)
@@ -298,29 +294,51 @@ func OrderDetail(c *fiber.Ctx) error {
 	orderTable := Model.Order{}
 	db.DB.Where("id = ?", order.Id).Find(&orderTable)
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"data": map[string]interface{}{
-			"order": map[string]interface{}{
-				"orderId":        order.Id,
-				"cashiersId":     order.CashierID,
-				"paymentTypesId": order.PaymentTypesId,
-				"totalPrice":     order.TotalPrice,
-				"totalPaid":      order.TotalPaid,
-				"totalReturn":    order.TotalReturn,
-				"receiptId":      order.ReceiptId,
-				"createdAt":      order.CreatedAt,
-				"cashier":        cashier,
-				"payment_type":   paymentType,
-			},
-			"products": TotalProducts,
-		},
-		"Message": "Success",
-	})
+	orderDetail := dto.OrderDetail{
+		OrderId:        order.Id,
+		CashierId:      order.CashierID,
+		PaymentTypesId: order.PaymentTypesId,
+		TotalPrice:     order.TotalPrice,
+		TotalPaid:      order.TotalPaid,
+		TotalReturn:    order.TotalReturn,
+		ReceiptId:      order.ReceiptId,
+		CreatedAt:      order.CreatedAt,
+		Cashier:        cashier,
+		PaymentType:    paymentType,
+	}
+
+	responseData := dto.OrderDetailResponse{
+		Orders:   orderDetail,
+		Products: TotalProducts,
+	}
+
+	response := Response.NewWebResponse(responseData)
+
+	return c.Status(200).JSON(response)
 
 }
 
+// order controller
+// @Description order list
+// @Summary order list
+// @Tags Order
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.OrderListResponse]
+// @Router /orders [get]
 func OrdersList(c *fiber.Ctx) error {
+
+	//Token authenticate
+	headerToken := c.Get("Authorization")
+	if headerToken == "" {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	//Token authenticate
 
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	skip, _ := strconv.Atoi(c.Query("skip"))
@@ -329,19 +347,7 @@ func OrdersList(c *fiber.Ctx) error {
 
 	db.DB.Select("*").Limit(limit).Offset(skip).Find(&order).Count(&count)
 
-	type OrderList struct {
-		OrderId        int               `json:"orderId"`
-		CashierID      int               `json:"cashiersId"`
-		PaymentTypesId int               `json:"paymentTypesId"`
-		TotalPrice     int               `json:"totalPrice"`
-		TotalPaid      int               `json:"totalPaid"`
-		TotalReturn    int               `json:"totalReturn"`
-		ReceiptId      string            `json:"receiptId"`
-		CreatedAt      time.Time         `json:"createdAt"`
-		Payments       Model.PaymentType `json:"payment_type"`
-		Cashiers       Model.Cashier     `json:"cashier"`
-	}
-	OrderResponse := make([]*OrderList, 0)
+	OrderResponse := make([]*dto.OrderList, 0)
 
 	for _, v := range order {
 		cashier := Model.Cashier{}
@@ -349,7 +355,7 @@ func OrdersList(c *fiber.Ctx) error {
 		paymentType := Model.PaymentType{}
 		db.DB.Where("id = ?", v.PaymentTypesId).Find(&paymentType)
 
-		OrderResponse = append(OrderResponse, &OrderList{
+		OrderResponse = append(OrderResponse, &dto.OrderList{
 			OrderId:        v.Id,
 			CashierID:      v.CashierID,
 			PaymentTypesId: v.PaymentTypesId,
@@ -364,45 +370,50 @@ func OrdersList(c *fiber.Ctx) error {
 
 	}
 
-	return c.Status(404).JSON(fiber.Map{
-		"success": true,
-		"message": "Sucess",
-		"data":    OrderResponse,
-		"meta": map[string]interface{}{
-			"total": count,
-			"limit": limit,
-			"skip":  skip,
+	orderListResponse := dto.OrderListResponse{
+		Order: OrderResponse,
+		Meta: dto.Pagination{
+			Total: count,
+			Limit: limit,
+			Skip:  skip,
 		},
-	})
+	}
+
+	response := Response.NewWebResponse(orderListResponse)
+
+	return c.Status(404).JSON(response)
 }
 
+// order controller
+// @Description order list
+// @Summary order list
+// @Tags Order
+// @Produce json
+// @Param orderId path string true "order id"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.OrderListResponse]
+// @Router /orders/{orderId}/download [get]
 func DownloadOrder(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Token expired or invalid",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
+
 	param := c.Params("orderId")
 
 	var order Model.Order
 	db.DB.Where("id=?", param).First(&order)
 
 	if order.Id == 0 {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"Message": "Order Not Found",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Order not found")
+		return c.Status(404).JSON(response)
 	}
 	productIds := strings.Split(order.ProductId, ",")
 
@@ -549,10 +560,8 @@ func DownloadOrder(c *fiber.Ctx) error {
 
 	//update recepit is downloaded to 1 means true
 	db.DB.Table("orders").Where("id=?", order.Id).Update("is_download", 1)
-	return c.Status(200).JSON(fiber.Map{
-		"Success": true,
-		"Message": "Success",
-	})
+	response := Response.NewWebResponse("")
+	return c.Status(200).JSON(response)
 
 }
 

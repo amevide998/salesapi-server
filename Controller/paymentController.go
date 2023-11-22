@@ -1,69 +1,72 @@
 package Controller
 
 import (
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"log"
+	"net/http"
 	"sales-api/Middleware"
 	"sales-api/Model"
+	"sales-api/Response"
 	db "sales-api/config"
+	"sales-api/dto"
 	"strconv"
 )
 
-// Payment struct with two values
-type Payment struct {
-	Id            uint   `json:"paymentId"`
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	PaymentTypeId int    `json:"payment_type_id"`
-	Logo          string `json:"logo"`
-}
-
+// payment controller
+// @Description create payment
+// @Summary create payment
+// @Tags Payment
+// @Produce json
+// @Param request body dto.CreatePayment true "request"
+// @Param Authorization header string true "authorization"
+// @Success 201 {object} Response.WebResponse[Model.Payment]
+// @Router /payments [post]
 func CreatePayment(c *fiber.Ctx) error {
 
-	var data map[string]string
+	var data dto.CreatePayment
 	paymentError := c.BodyParser(&data)
 	if paymentError != nil {
 		log.Fatalf("payment error in post request %v", paymentError)
 	}
-	if data["name"] == "" || data["type"] == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"message": "Payment Name and Type is required",
-			"error":   map[string]interface{}{},
-		})
+	if data.Name == "" || data.Type == "" {
+		response := Response.NewWebErrorResponse("Payment Name and Type is required")
+		return c.Status(400).JSON(response)
 	}
 
 	var paymentTypes Model.PaymentType
-	db.DB.Where("name", data["type"]).First(&paymentTypes)
+	db.DB.Where("name", data.Type).First(&paymentTypes)
 	payment := Model.Payment{
-		Name:          data["name"],
-		Type:          data["type"],
+		Name:          data.Type,
+		Type:          data.Type,
 		PaymentTypeId: int(paymentTypes.Id),
-		Logo:          data["logo"],
+		Logo:          data.Logo,
 	}
 	db.DB.Create(&payment)
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    payment,
-	})
+	response := Response.NewWebResponse(payment)
+	return c.Status(200).JSON(response)
 }
+
+// payment controller
+// @Description list payment
+// @Summary list payment
+// @Tags Payment
+// @Produce json
+// @Param limit query string true "limit"
+// @Param skip query string true "skip"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.ListPayment]
+// @Router /payments [get]
 func PaymentList(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(404).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Token not found",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "UnAuthorized",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
@@ -71,44 +74,44 @@ func PaymentList(c *fiber.Ctx) error {
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	skip, _ := strconv.Atoi(c.Query("skip"))
 	var count int64
-	var payment []Payment
+	var payment []dto.Payment
 	db.DB.Select("id ,name,type,payment_type_id,logo,created_at,updated_at").Limit(limit).Offset(skip).Find(&payment).Count(&count)
-	metaMap := map[string]interface{}{
-		"total": count,
-		"limit": limit,
-		"skip":  skip,
+	metaMap := dto.Pagination{
+		Total: count,
+		Limit: limit,
+		Skip:  skip,
 	}
-	categoriesData := map[string]interface{}{
-		"payments": payment,
-		"meta":     metaMap,
+	categoriesData := dto.ListPayment{
+		Payments: payment,
+		Meta:     metaMap,
 	}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    categoriesData,
-	})
+	response := Response.NewWebResponse(categoriesData)
+	return c.JSON(response)
 
 }
 
+// payment controller
+// @Description payment details
+// @Summary payment details
+// @Tags Payment
+// @Produce json
+// @Param paymentId path string true "payment id"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[Model.Payment]
+// @Router /payments/{paymentId} [get]
 func GetPaymentDetails(c *fiber.Ctx) error {
 	paymentId := c.Params("paymentId")
 
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
@@ -116,34 +119,33 @@ func GetPaymentDetails(c *fiber.Ctx) error {
 	db.DB.Where("id=?", paymentId).First(&payment)
 
 	if payment.Name == "" {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "Payment Not Found",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("payment not found")
+		return c.Status(404).JSON(response)
 	}
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    payment,
-	})
+	response := Response.NewWebResponse(payment)
+	return c.Status(200).JSON(response)
 }
 
+// payment controller
+// @Description payment details
+// @Summary payment details
+// @Tags Payment
+// @Produce json
+// @Param paymentId path string true "payment id"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[string]
+// @Router /payments/{paymentId} [delete]
 func DeletePayment(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(404).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Token not found",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "UnAuthorized",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
@@ -152,54 +154,47 @@ func DeletePayment(c *fiber.Ctx) error {
 
 	db.DB.First(&payment, paymentId)
 	if payment.Name == "" {
-		return c.Status(500).JSON(fiber.Map{
-			"success": false,
-			"Message": "No payment found against this payment id",
-		})
+		response := Response.NewWebErrorResponse("No payment found against this payment id")
+		return c.Status(http.StatusNotFound).JSON(response)
 	}
 
 	result := db.DB.Delete(&payment)
 	if result.RowsAffected == 0 {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"Message": "payment removing failed",
-		})
+		response := Response.NewWebErrorResponse("payment removing failed")
+		return c.Status(http.StatusNotFound).JSON(response)
 	}
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-	})
+	response := Response.NewWebResponse("")
+	return c.Status(200).JSON(response)
 }
 
+// payment controller
+// @Description payment details
+// @Summary payment details
+// @Tags Payment
+// @Produce json
+// @Param paymentId path string true "payment id"
+// @Param request body Model.Payment true "request"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[Model.Payment]
+// @Router /payments/{paymentId} [put]
 func UpdatePayment(c *fiber.Ctx) error {
 	paymentId := c.Params("paymentId")
 	var totalPayment Model.Payment
 	db.DB.Find(&totalPayment)
 
-	fmt.Println("-----------------------------------")
-	fmt.Println("---------------All payments--------------------", totalPayment)
-	fmt.Println("-----------------------------------")
 	var payment Model.Payment
 
 	db.DB.Find(&payment, "id = ?", paymentId)
 
-	//if payment.Id == 0 {
-	//	return c.Status(404).JSON(fiber.Map{
-	//		"success": false,
-	//		"Message": "Payment not exist against this id",
-	//		"error":   map[string]interface{}{},
-	//	})
-	//}
-
 	var updatePaymentData Model.Payment
-	c.BodyParser(&updatePaymentData)
+	err := c.BodyParser(&updatePaymentData)
+	if err != nil {
+		return err
+	}
 	if updatePaymentData.Name == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"message": "Payment name is required",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Payment name is required")
+		return c.Status(400).JSON(response)
 	}
 
 	var paymentTypeId int
@@ -212,17 +207,14 @@ func UpdatePayment(c *fiber.Ctx) error {
 	if updatePaymentData.Type == "EDC" {
 		paymentTypeId = 3
 	}
-	fmt.Println(paymentTypeId)
+
 	payment.Name = updatePaymentData.Name
 	payment.Type = updatePaymentData.Type
 	payment.PaymentTypeId = paymentTypeId
 	payment.Logo = updatePaymentData.Logo
 
 	db.DB.Save(&payment)
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-		"data":    payment,
-	})
+	response := Response.NewWebResponse(payment)
+	return c.Status(200).JSON(response)
 
 }

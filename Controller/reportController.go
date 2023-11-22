@@ -5,26 +5,32 @@ import (
 	"log"
 	"sales-api/Middleware"
 	"sales-api/Model"
+	"sales-api/Response"
 	db "sales-api/config"
+	"sales-api/dto"
 	"strconv"
 	"strings"
 )
 
+// revenue controller
+// @Description get revenues
+// @Summary get revenues
+// @Tags report
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.Revenue]
+// @Router /revenues [get]
 func GetRevenues(c *fiber.Ctx) error {
 
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(404).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Order does not exist",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(404).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Token expired or invalid",
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
@@ -88,14 +94,12 @@ func GetRevenues(c *fiber.Ctx) error {
 	TotalRevenues = append(TotalRevenues, &Resp2)
 	TotalRevenues = append(TotalRevenues, &Resp3)
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"message": "success",
-		"data": map[string]interface{}{
-			"totalRevenue": sum1 + sum2 + sum3,
-			"paymentTypes": TotalRevenues,
-		},
-	})
+	dataResult := dto.Revenue{
+		TotalRevenue: int64(sum1 + sum2 + sum3),
+		PaymentTypes: TotalRevenues,
+	}
+	response := Response.NewWebResponse(dataResult)
+	return c.Status(200).JSON(response)
 }
 
 type Sold struct {
@@ -104,12 +108,33 @@ type Sold struct {
 	TotalAmount int    `json:"totalAmount"`
 }
 
+// revenue controller
+// @Description get solds
+// @Summary get solds
+// @Tags report
+// @Produce json
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.Sold]
+// @Router /solds [get]
 func GetSolds(c *fiber.Ctx) error {
+
+	//Token authenticate
+	headerToken := c.Get("Authorization")
+	if headerToken == "" {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	//Token authenticate
+
 	orders := []Model.Order{}
 	db.DB.Find(&orders)
 
-	TotalSolds := make([]*Model.SoldResponse, 0)
-	TotalSoldsFinal := make([]*Model.SoldResponse, 0)
+	TotalSold := make([]*Model.SoldResponse, 0)
+	TotalSoldFinal := make([]*Model.SoldResponse, 0)
 
 	for _, v := range orders {
 		quantities := strings.Split(v.Quantities, ",")
@@ -131,7 +156,7 @@ func GetSolds(c *fiber.Ctx) error {
 			}
 
 			db.DB.Where("id", p).Find(&prods)
-			TotalSolds = append(TotalSolds, &Model.SoldResponse{
+			TotalSold = append(TotalSold, &Model.SoldResponse{
 				Name:        prods.Name,
 				ProductId:   p,
 				TotalQty:    q,
@@ -141,7 +166,7 @@ func GetSolds(c *fiber.Ctx) error {
 
 	}
 	duplicates := []int{}
-	for _, v := range TotalSolds {
+	for _, v := range TotalSold {
 
 		if contains(duplicates, v.ProductId) == false {
 			duplicates = append(duplicates, v.ProductId)
@@ -150,7 +175,7 @@ func GetSolds(c *fiber.Ctx) error {
 	quantityArray := []int{}
 	for _, v := range duplicates {
 		qty := 0
-		for _, x := range TotalSolds {
+		for _, x := range TotalSold {
 			if v == x.ProductId {
 				qty = qty + x.TotalQty
 			}
@@ -163,7 +188,7 @@ func GetSolds(c *fiber.Ctx) error {
 
 		prods := Model.Product{}
 		db.DB.Where("id", duplicates[i]).Find(&prods)
-		TotalSoldsFinal = append(TotalSoldsFinal, &Model.SoldResponse{
+		TotalSoldFinal = append(TotalSoldFinal, &Model.SoldResponse{
 			Name:        prods.Name,
 			TotalQty:    quantityArray[i],
 			TotalAmount: quantityArray[i] * prods.Price,
@@ -171,13 +196,11 @@ func GetSolds(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"message": "success",
-		"data": map[string]interface{}{
-			"orderProducts": TotalSoldsFinal,
-		},
-	})
+	dataResult := dto.Sold{
+		TotalSold: TotalSoldFinal,
+	}
+	response := Response.NewWebResponse(dataResult)
+	return c.Status(200).JSON(response)
 }
 
 func contains(s []int, e int) bool {

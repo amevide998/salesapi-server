@@ -3,35 +3,38 @@ package Controller
 import (
 	"github.com/gofiber/fiber/v2"
 	"log"
+	"net/http"
 	"sales-api/Middleware"
 	"sales-api/Model"
+	"sales-api/Response"
 	db "sales-api/config"
+	"sales-api/dto"
 	"strconv"
 )
 
-type Products struct {
-	Products     Model.Product
-	CategoriesId string `json:"categories_Id"`
-}
-type ProdDiscount struct {
-	Id         int      `json:"id" gorm:"type:INT(10) UNSIGNED NOT NULL AUTO_INCREMENT;primaryKey"`
-	Sku        string   `json:"sku"`
-	Name       string   `json:"name"`
-	Stock      int      `json:"stock"`
-	Price      int      `json:"price"`
-	Image      string   `json:"image"`
-	CategoryId int      `json:"categoryId"`
-	Discount   Discount `json:"discount"`
-}
-type Discount struct {
-	Qty       int    `json:"qty"`
-	Types     string `json:"type"`
-	Result    int    `json:"result"`
-	ExpiredAt int    `json:"expiredAt"`
-}
-
+// Product controller
+// @Description create product
+// @Summary create product
+// @Tags Product
+// @Produce json
+// @Param request body dto.ProdDiscount true "request"
+// @Param Authorization header string true "authorization"
+// @Success 201 {object} Response.WebResponse[Model.Product]
+// @Router /products [post]
 func CreateProduct(c *fiber.Ctx) error {
-	var data ProdDiscount
+	//Token authenticate
+	headerToken := c.Get("Authorization")
+	if headerToken == "" {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	//Token authenticate
+
+	var data dto.ProdDiscount
 	err := c.BodyParser(&data)
 	if err != nil {
 		log.Fatalf("Product error in post request %v", err)
@@ -60,31 +63,30 @@ func CreateProduct(c *fiber.Ctx) error {
 
 	db.DB.Table("products").Where("id = ?", product.Id).Update("sku", "SK00"+strconv.Itoa(product.Id))
 
-	Response := map[string]interface{}{
-		"success": true,
-		"message": "Success",
-		"data":    product,
-	}
-	return (c.JSON(Response))
+	response := Response.NewWebResponse(product)
+	return c.Status(http.StatusCreated).JSON(response)
 
 }
 
+// Product controller
+// @Description get product details
+// @Summary get product details
+// @Tags Product
+// @Produce json
+// @Param productId path string true "productId"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[Model.ProductResult]
+// @Router /products/{productId} [get]
 func GetProductDetails(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
@@ -115,37 +117,52 @@ func GetProductDetails(c *fiber.Ctx) error {
 		)
 	}
 
-	Response := map[string]interface{}{
-		"success": true,
-		"message": "Success",
-		"data":    productsRes,
-	}
-	return (c.JSON(Response))
+	response := Response.NewWebResponse(productsRes)
+	return c.Status(http.StatusOK).JSON(response)
 }
 
+// Product controller
+// @Description update products
+// @Summary update products
+// @Tags Product
+// @Produce json
+// @Param productId path string true "productId"
+// @Param request body Model.Product true "request"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[Model.Product]
+// @Router /products/{productId} [put]
 func UpdateProduct(c *fiber.Ctx) error {
+	//Token authenticate
+	headerToken := c.Get("Authorization")
+	if headerToken == "" {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	//Token authenticate
+
 	productId := c.Params("productId")
 	var product Model.Product
 
 	db.DB.Find(&product, "id = ?", productId)
 
 	if product.Name == "" {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "Product Not Found",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("product Not Found")
+		return c.Status(404).JSON(response)
 	}
 
 	var updateProductData Model.Product
-	c.BodyParser(&updateProductData)
+	err := c.BodyParser(&updateProductData)
+	if err != nil {
+		return err
+	}
 
 	if updateProductData.Name == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"message": "Product name is required",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Product name is required")
+		return c.Status(400).JSON(response)
 	}
 
 	product.Name = updateProductData.Name
@@ -155,29 +172,32 @@ func UpdateProduct(c *fiber.Ctx) error {
 	product.Stock = updateProductData.Stock
 
 	db.DB.Save(&product)
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"message": "Success",
-		"data":    product,
-	})
+	response := Response.NewWebResponse(product)
+	return c.Status(200).JSON(response)
 }
 
+// Product controller
+// @Description product list
+// @Summary product list
+// @Tags Product
+// @Produce json
+// @Param limit query string true "limit"
+// @Param skip query string true "skip"
+// @Param categoryId query string true "categoryId"
+// @Param q query string true "q"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[dto.ProductList]
+// @Router /products [get]
 func ProductList(c *fiber.Ctx) error {
 	//Token authenticate
 	headerToken := c.Get("Authorization")
 	if headerToken == "" {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
-		return c.Status(401).JSON(fiber.Map{
-			"success": false,
-			"message": "Unauthorized",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
 	}
 	//Token authenticate
 
@@ -218,20 +238,18 @@ func ProductList(c *fiber.Ctx) error {
 			)
 		}
 
-		meta := map[string]interface{}{
-			"total": count,
-			"limit": limit,
-			"skip":  skip,
+		meta := dto.Pagination{
+			Total: count,
+			Limit: intLimit,
+			Skip:  intSkip,
 		}
 
-		return c.Status(200).JSON(fiber.Map{
-			"success": true,
-			"message": "Success",
-			"data": map[string]interface{}{
-				"products": productsRes,
-				"meta":     meta,
-			},
-		})
+		dataResult := dto.ProductList{
+			ProductRes: productsRes,
+			Meta:       meta,
+		}
+		response := Response.NewWebResponse(dataResult)
+		return c.Status(200).JSON(response)
 	} else {
 
 		var count int64
@@ -260,40 +278,56 @@ func ProductList(c *fiber.Ctx) error {
 			)
 		}
 
-		meta := map[string]interface{}{
-			"total": count,
-			"limit": limit,
-			"skip":  skip,
+		meta := dto.Pagination{
+			Total: count,
+			Limit: intLimit,
+			Skip:  intSkip,
 		}
 
-		return c.Status(200).JSON(fiber.Map{
-			"success": true,
-			"message": "Success",
-			"data": map[string]interface{}{
-				"products": productsRes,
-				"meta":     meta,
-			},
-		})
+		dataResult := dto.ProductList{
+			ProductRes: productsRes,
+			Meta:       meta,
+		}
+
+		response := Response.NewWebResponse(dataResult)
+		return c.Status(200).JSON(response)
 	}
 }
 
+// Product controller
+// @Description delete product
+// @Summary delete product
+// @Tags Product
+// @Produce json
+// @Param productId path string true "product id"
+// @Param Authorization header string true "authorization"
+// @Success 200 {object} Response.WebResponse[string]
+// @Router /products/{productId} [delete]
 func DeleteProduct(c *fiber.Ctx) error {
+
+	//Token authenticate
+	headerToken := c.Get("Authorization")
+	if headerToken == "" {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	if err := Middleware.AuthenticateToken(Middleware.SplitToken(headerToken)); err != nil {
+		response := Response.NewWebErrorResponse("Unauthorized")
+		return c.Status(401).JSON(response)
+	}
+	//Token authenticate
+
 	productId := c.Params("productId")
 	var product Model.Product
 
 	db.DB.First(&product, productId)
 	if product.Id == 0 {
-		return c.Status(404).JSON(fiber.Map{
-			"success": false,
-			"message": "Product Not Found",
-			"error":   map[string]interface{}{},
-		})
+		response := Response.NewWebErrorResponse("Product Not Found")
+		return c.Status(404).JSON(response)
 	}
 
 	db.DB.Delete(&product)
 
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"Message": "Success",
-	})
+	response := Response.NewWebResponse("")
+	return c.Status(200).JSON(response)
 }
