@@ -34,7 +34,7 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(400).JSON(response)
 	}
 	var cashier Model.Cashier
-	db.DB.Where("username = ?", data.Name).First(&cashier)
+	db.DB.Where("name = ?", data.Name).First(&cashier)
 
 	//check if cashier exist
 	if cashier.Id == 0 {
