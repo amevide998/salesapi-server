@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/cashier/{cashierId}/login": {
+        "/cashier/login": {
             "post": {
                 "description": "login Cashier",
                 "produces": [
@@ -27,19 +27,12 @@ const docTemplate = `{
                 "summary": "login cashier",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "cashier Id",
-                        "name": "cashierId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
                         "description": "request",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.Passcode"
+                            "$ref": "#/definitions/dto.LoginDto"
                         }
                     }
                 ],
@@ -1729,6 +1722,17 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/dto.Payment"
                     }
+                }
+            }
+        },
+        "dto.LoginDto": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
                 }
             }
         },

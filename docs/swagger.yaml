@@ -409,6 +409,13 @@ definitions:
           $ref: '#/definitions/dto.Payment'
         type: array
     type: object
+  dto.LoginDto:
+    properties:
+      name:
+        type: string
+      password:
+        type: string
+    type: object
   dto.OrderDetail:
     properties:
       cashier:
@@ -565,31 +572,6 @@ info:
   title: Sales api docs
   version: "1.0"
 paths:
-  /cashier/{cashierId}/login:
-    post:
-      description: login Cashier
-      parameters:
-      - description: cashier Id
-        in: path
-        name: cashierId
-        required: true
-        type: string
-      - description: request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.Passcode'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/Response.WebResponse-dto_Token'
-      summary: login cashier
-      tags:
-      - authentication
   /cashier/{cashierId}/logout:
     post:
       description: logout Cashier
@@ -638,6 +620,26 @@ paths:
           schema:
             $ref: '#/definitions/Response.WebResponse-dto_Passcode'
       summary: passcode cashier
+      tags:
+      - authentication
+  /cashier/login:
+    post:
+      description: login Cashier
+      parameters:
+      - description: request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Response.WebResponse-dto_Token'
+      summary: login cashier
       tags:
       - authentication
   /cashiers:

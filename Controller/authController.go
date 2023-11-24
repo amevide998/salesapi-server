@@ -20,7 +20,7 @@ import (
 // @Produce json
 // @Param request body dto.LoginDto true "request"
 // @Success 200 {object} Response.WebResponse[dto.Token]
-// @Router /cashier/{cashierId}/login [post]
+// @Router /cashier/login [post]
 func Login(c *fiber.Ctx) error {
 	var data dto.LoginDto
 	if err := c.BodyParser(&data); err != nil {
