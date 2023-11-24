@@ -18,25 +18,23 @@ import (
 // @Summary login cashier
 // @Tags authentication
 // @Produce json
-// @Param cashierId path string true "cashier Id"
-// @Param request body dto.Passcode true "request"
+// @Param request body dto.LoginDto true "request"
 // @Success 200 {object} Response.WebResponse[dto.Token]
 // @Router /cashier/{cashierId}/login [post]
 func Login(c *fiber.Ctx) error {
-	cashierId := c.Params("cashierId")
-	var data map[string]string
+	var data dto.LoginDto
 	if err := c.BodyParser(&data); err != nil {
 		response := Response.NewWebErrorResponse("invalid post request")
 		return c.Status(400).JSON(response)
 	}
 
 	//check if passcode is empty
-	if data["passcode"] == "" {
+	if data.Password == "" {
 		response := Response.NewWebErrorResponse("passcode cannot be empty")
 		return c.Status(400).JSON(response)
 	}
 	var cashier Model.Cashier
-	db.DB.Where("id = ?", cashierId).First(&cashier)
+	db.DB.Where("username = ?", data.Name).First(&cashier)
 
 	//check if cashier exist
 	if cashier.Id == 0 {
@@ -44,7 +42,8 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(404).JSON(response)
 	}
 
-	if cashier.Passcode != data["passcode"] {
+	// todo using change to using bcrypt
+	if cashier.Passcode != data.Password {
 		response := Response.NewWebErrorResponse("passcode not match")
 		return c.Status(401).JSON(response)
 	}
