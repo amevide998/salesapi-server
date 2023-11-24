@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/swagger"
+	"os"
 	routes "sales-api/Routes"
 	db "sales-api/config"
 	_ "sales-api/docs"
@@ -50,7 +51,7 @@ func main() {
 	routes.Setup(app)
 
 	// listen on port
-	err := app.Listen(":8000")
+	err := app.Listen(os.Getenv("HOST"))
 	if err != nil {
 		return
 	}
