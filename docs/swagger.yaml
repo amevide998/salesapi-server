@@ -565,7 +565,6 @@ definitions:
       token:
         type: string
     type: object
-host: localhost:8000
 info:
   contact: {}
   description: This is the complete api documentation for sales api
